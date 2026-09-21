@@ -1,0 +1,310 @@
+/* =========================================================
+   Design tokens — "เรดาร์ความเสี่ยงอุบัติเหตุทางถนน"
+   แนวคิด: ห้องควบคุมจราจร / ป้ายจราจรบนทางหลวง
+   สี: ยางมะตอยเข้ม + สีเตือนอำพัน + สัญญาณความเสี่ยง (เขียว/เหลือง/ส้ม/แดง)
+   ========================================================= */
+:root {
+  --asphalt-950: #121417;
+  --asphalt-900: #1B1E23;
+  --asphalt-800: #23272E;
+  --asphalt-700: #2E333B;
+  --line: #363C45;
+  --paper: #EDEAE2;
+  --paper-dim: #B7B9B8;
+  --muted: #868C94;
+
+  --amber: #FFB020;
+  --amber-dim: #7A5A16;
+  --signal-red: #E5484D;
+  --safety-green: #3FA772;
+  --caution-orange: #E0812A;
+
+  --risk-low: #3FA772;
+  --risk-mid: #D9B233;
+  --risk-high: #E0812A;
+  --risk-severe: #E5484D;
+
+  --radius: 3px;
+  --font: "Kanit", "Noto Sans Thai", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--asphalt-950);
+  color: var(--paper);
+  font-family: var(--font);
+  font-weight: 400;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+.board {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+
+/* ---------- HERO ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 28px;
+  align-items: center;
+  padding: 28px 30px;
+  background: linear-gradient(135deg, var(--asphalt-900) 0%, var(--asphalt-800) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(255,176,32,0.06) 46px 50px);
+  pointer-events: none;
+}
+.hero-mark { color: var(--amber); flex-shrink: 0; z-index: 1; }
+.mark-svg { width: 62px; height: 62px; }
+
+.hero-text { z-index: 1; min-width: 280px; }
+.hero-eyebrow {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 3.2vw, 38px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--paper);
+}
+.hero-sub {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--paper-dim);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.hero-sub span { color: var(--amber); font-weight: 600; }
+
+.hero-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 18px 28px;
+  z-index: 1;
+}
+.kpi { display: flex; flex-direction: column; align-items: flex-start; }
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-danger .kpi-value { color: var(--signal-red); }
+.kpi-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ---------- PANELS ---------- */
+.panel {
+  background: var(--asphalt-900);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 24px 26px;
+  margin-top: 20px;
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--paper);
+}
+.panel-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.panel-grid .panel { margin-top: 20px; }
+.panel-grid-wide { grid-template-columns: 1.3fr 1fr; }
+
+.panel-grid canvas { max-height: 240px; }
+.chart-tall { max-height: 320px !important; }
+
+/* ---------- PREDICTION PANEL ---------- */
+.panel-predict { border-color: var(--amber-dim); }
+.predict-body {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+.predict-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+.predict-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.predict-form select {
+  background: var(--asphalt-800);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  font-family: var(--font);
+  font-size: 14.5px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+}
+.predict-form select:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+.predict-form button {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  background: var(--amber);
+  color: #1A1500;
+  border: none;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 13px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.predict-form button:hover { filter: brightness(1.08); }
+.predict-form button:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+
+.predict-result {
+  background: var(--asphalt-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 190px;
+}
+.result-idle p { color: var(--muted); font-size: 14px; margin: 0; }
+
+.result-level {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.result-level .tag {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.result-level .value {
+  font-size: 28px;
+  font-weight: 700;
+}
+.risk-ต่ำ .value, .risk-badge.risk-ต่ำ { color: var(--risk-low); }
+.risk-ปานกลาง .value, .risk-badge.risk-ปานกลาง { color: var(--risk-mid); }
+.risk-สูง .value, .risk-badge.risk-สูง { color: var(--risk-high); }
+.risk-สูงมาก .value, .risk-badge.risk-สูงมาก { color: var(--risk-severe); }
+
+.proba-bars { display: flex; flex-direction: column; gap: 8px; }
+.proba-row { display: grid; grid-template-columns: 70px 1fr 42px; align-items: center; gap: 10px; font-size: 12.5px; color: var(--paper-dim); }
+.proba-track { height: 7px; background: var(--asphalt-700); border-radius: 4px; overflow: hidden; }
+.proba-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.proba-fill.risk-ต่ำ { background: var(--risk-low); }
+.proba-fill.risk-ปานกลาง { background: var(--risk-mid); }
+.proba-fill.risk-สูง { background: var(--risk-high); }
+.proba-fill.risk-สูงมาก { background: var(--risk-severe); }
+
+/* ---------- HEATMAP ---------- */
+.heatmap {
+  display: grid;
+  grid-auto-rows: 24px;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.heatmap .hm-row { display: grid; grid-template-columns: 64px repeat(24, 1fr); gap: 3px; align-items: center; }
+.heatmap .hm-label { font-size: 12px; color: var(--paper-dim); }
+.heatmap .hm-cell { height: 20px; border-radius: 2px; }
+.heatmap .hm-hourlabels { display: grid; grid-template-columns: 64px repeat(24, 1fr); gap: 3px; margin-bottom: 4px; }
+.heatmap .hm-hourlabels span { text-align: center; font-size: 10px; }
+
+/* ---------- MAP ---------- */
+.map-filter {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-filter select {
+  background: var(--asphalt-800);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  font-family: var(--font);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+}
+.map { height: 420px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+
+/* ---------- FOOTER ---------- */
+.board-footer {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.board-footer p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 90ch;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 980px) {
+  .hero { grid-template-columns: 1fr; text-align: left; }
+  .hero-kpis { grid-template-columns: repeat(4, auto); }
+  .panel-grid, .panel-grid-wide { grid-template-columns: 1fr 1fr; }
+  .predict-body { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .board { padding: 16px 14px 40px; }
+  .hero { padding: 20px; }
+  .hero-kpis { grid-template-columns: repeat(2, auto); }
+  .panel-grid, .panel-grid-wide { grid-template-columns: 1fr; }
+  .predict-form { grid-template-columns: 1fr; }
+  .heatmap .hm-row, .heatmap .hm-hourlabels { grid-template-columns: 48px repeat(24, minmax(10px,1fr)); }
+}

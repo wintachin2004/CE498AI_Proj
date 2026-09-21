@@ -1,0 +1,5 @@
+﻿model,accuracy,f1_macro,f1_ต่ำ,f1_ปานกลาง,f1_สูง,f1_สูงมาก
+Gradient Boosting,0.5829,0.5729,0.6683,0.378,0.5024,0.7431
+Random Forest,0.4985,0.4894,0.5678,0.331,0.3891,0.6698
+Baseline: stratified random,0.2489,0.2486,0.2586,0.2273,0.2462,0.2623
+Baseline: most_frequent,0.2502,0.1,0.4002,0.0,0.0,0.0

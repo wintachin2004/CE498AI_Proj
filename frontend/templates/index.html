@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบทำนายความเสี่ยงอุบัติเหตุทางถนน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="board">
+
+  <!-- ===== HERO / HEADER STRIP ===== -->
+  <header class="hero">
+    <div class="hero-mark" aria-hidden="true">
+      <svg viewBox="0 0 120 120" class="mark-svg">
+        <polygon points="60,6 114,100 6,100" fill="none" stroke="currentColor" stroke-width="7"/>
+        <line x1="60" y1="42" x2="60" y2="72" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="60" cy="86" r="4.5" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="hero-text">
+      <p class="hero-eyebrow">กรมทางหลวง · กรมทางหลวงชนบท · ข้อมูลอุบัติเหตุ 2019–2026</p>
+      <h1>เรดาร์ความเสี่ยงอุบัติเหตุทางถนน</h1>
+      <p class="hero-sub">วิเคราะห์รูปแบบอุบัติเหตุกว่า <span id="hero-count">—</span> เหตุการณ์ทั่วประเทศ เพื่อบอกว่าจุดไหน ช่วงเวลาไหน มีความเสี่ยงสูง</p>
+    </div>
+    <div class="hero-kpis" id="kpi-row">
+      <div class="kpi"><span class="kpi-value" id="kpi-total">—</span><span class="kpi-label">เหตุการณ์ทั้งหมด</span></div>
+      <div class="kpi kpi-danger"><span class="kpi-value" id="kpi-deaths">—</span><span class="kpi-label">ผู้เสียชีวิต</span></div>
+      <div class="kpi"><span class="kpi-value" id="kpi-injuries">—</span><span class="kpi-label">ผู้บาดเจ็บ</span></div>
+      <div class="kpi"><span class="kpi-value" id="kpi-provinces">—</span><span class="kpi-label">จังหวัดที่มีข้อมูล</span></div>
+    </div>
+  </header>
+
+  <!-- ===== PREDICTION MODULE ===== -->
+  <section class="panel panel-predict" id="predict-panel">
+    <div class="panel-head">
+      <h2>เช็คความเสี่ยง</h2>
+      <p class="panel-note">เลือกจังหวัด ช่วงเวลา วัน และฤดูกาล ระบบจะประเมินระดับความเสี่ยงจากรูปแบบอุบัติเหตุในอดีต</p>
+    </div>
+    <div class="predict-body">
+      <form class="predict-form" id="predict-form">
+        <label>
+          <span>จังหวัด</span>
+          <select id="f-province" required></select>
+        </label>
+        <label>
+          <span>ช่วงเวลา</span>
+          <select id="f-hourbin" required></select>
+        </label>
+        <label>
+          <span>วันในสัปดาห์</span>
+          <select id="f-weekday" required></select>
+        </label>
+        <label>
+          <span>ฤดูกาล</span>
+          <select id="f-season" required></select>
+        </label>
+        <button type="submit">ประเมินความเสี่ยง</button>
+      </form>
+      <div class="predict-result" id="predict-result">
+        <div class="result-idle">
+          <p>ผลการประเมินจะแสดงที่นี่</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TIME PATTERN MODULES ===== -->
+  <section class="panel-grid">
+    <div class="panel">
+      <div class="panel-head"><h2>อุบัติเหตุตามชั่วโมง</h2></div>
+      <canvas id="chart-hour"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>อุบัติเหตุตามวันในสัปดาห์</h2></div>
+      <canvas id="chart-weekday"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>อุบัติเหตุตามเดือน</h2></div>
+      <canvas id="chart-month"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>สภาพอากาศขณะเกิดเหตุ</h2></div>
+      <canvas id="chart-weather"></canvas>
+    </div>
+  </section>
+
+  <!-- ===== HEATMAP ===== -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>แผนที่ความหนาแน่น: วัน × ชั่วโมง</h2>
+      <p class="panel-note">สีเข้มขึ้น = จำนวนอุบัติเหตุสะสมมากขึ้นในช่วงนั้น</p>
+    </div>
+    <div id="heatmap" class="heatmap"></div>
+  </section>
+
+  <!-- ===== PROVINCE / CAUSE / TREND ===== -->
+  <section class="panel-grid panel-grid-wide">
+    <div class="panel">
+      <div class="panel-head"><h2>10 จังหวัดที่เกิดเหตุสูงสุด</h2></div>
+      <canvas id="chart-province"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>สาเหตุที่พบบ่อยที่สุด</h2></div>
+      <canvas id="chart-cause"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>แนวโน้มรายปี</h2>
+      <p class="panel-note">จำนวนอุบัติเหตุ เทียบกับ จำนวนผู้เสียชีวิต ต่อปี</p>
+    </div>
+    <canvas id="chart-year" class="chart-tall"></canvas>
+  </section>
+
+  <!-- ===== MAP ===== -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>ตำแหน่งจุดเกิดเหตุ</h2>
+      <label class="map-filter">
+        กรองตามจังหวัด:
+        <select id="map-province"><option value="">ทั้งหมด (สุ่มตัวอย่าง)</option></select>
+      </label>
+    </div>
+    <div id="map" class="map"></div>
+  </section>
+
+  <footer class="board-footer">
+    <p>ข้อมูลดิบจากรายงานอุบัติเหตุทางถนนปี 2019–2026 · ระดับความเสี่ยงคำนวณจากความถี่และความรุนแรงของอุบัติเหตุในอดีต เพื่อใช้อ้างอิงเชิงสถิติเท่านั้น ไม่ใช่การพยากรณ์เหตุการณ์รายบุคคล</p>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
