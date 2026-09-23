@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-predict.py
-โหลดโมเดลที่เทรนไว้แล้ว และทำนาย "ระดับความเสี่ยง" อุบัติเหตุ
-จาก จังหวัด + ช่วงเวลา (hour_bin) + วันในสัปดาห์ + ฤดูกาล
-"""
-
 import os
 import joblib
 import numpy as np
@@ -14,7 +7,7 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
 
 
 class RiskPredictor:
-    def __init__(self, model_name="gradient_boosting_model.pkl"):
+    def __init__(self, model_name="lightgbm_model.pkl"):
         self.metadata = joblib.load(os.path.join(MODELS_DIR, "metadata.pkl"))
         self.model = joblib.load(os.path.join(MODELS_DIR, model_name))
         self.encoders = self.metadata["encoders"]

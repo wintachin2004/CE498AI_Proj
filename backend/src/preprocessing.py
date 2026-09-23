@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-preprocessing.py
-โค้ดจัดการข้อมูลอุบัติเหตุทางถนน (ปี 2019-2026)
-- รวมไฟล์ CSV รายปีที่มีโครงสร้างคอลัมน์ต่างกัน ให้เป็น schema เดียวกัน
-- ทำความสะอาดข้อมูล (วันที่, เวลา, พิกัด, ค่าว่าง)
-- สร้างฟีเจอร์ด้านเวลา/ฤดูกาล สำหรับใช้ทำนายความเสี่ยง
-"""
-
 import glob
 import os
 import re
@@ -17,7 +8,6 @@ import pandas as pd
 RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
 
-# แต่ละปีใช้ชื่อคอลัมน์ไม่เหมือนกัน -> แมปไปเป็นชื่อกลาง (canonical name)
 COLUMN_CANDIDATES = {
     "year": ["ปีที่เกิดเหตุ"],
     "date": ["วันที่เกิดเหตุ"],
@@ -53,13 +43,12 @@ WEATHER_MAP = {
     "ดินถล่ม": "landslide",
 }
 
-# ฤดูกาลของไทย (ประมาณการแบบกว้าง ๆ)
 def month_to_season(m):
     if m in (3, 4, 5):
-        return "summer"          # ฤดูร้อน
+        return "summer"          
     if m in (6, 7, 8, 9, 10):
-        return "rainy"           # ฤดูฝน
-    return "winter"              # ฤดูหนาว (11,12,1,2)
+        return "rainy"          
+    return "winter"              
 
 
 def find_column(df_cols, candidates):
@@ -88,7 +77,7 @@ def _parse_date_mixed(s):
     if s in ("nan", "", "None"):
         return pd.NaT
 
-    # เลข serial แบบ Excel (จำนวนวันนับจาก 1899-12-30)
+
     if re.fullmatch(r"\d{4,6}", s):
         try:
             return pd.Timestamp("1899-12-30") + pd.Timedelta(days=int(s))
@@ -100,13 +89,13 @@ def _parse_date_mixed(s):
         return pd.NaT
     a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
 
-    # ถ้าตัวแรก > 12 ต้องเป็น d/m/Y, ถ้าตัวที่สอง > 12 ต้องเป็น m/d/Y
+    
     if a > 12 and b <= 12:
         day, month = a, b
     elif b > 12 and a <= 12:
         day, month = b, a
     else:
-        # กำกวม (ทั้งคู่ <=12) -> ข้อมูลชุดนี้ส่วนใหญ่เป็น d/m/Y ให้ยึดตามนั้น
+        
         day, month = a, b
     try:
         return pd.Timestamp(year=y, month=month, day=day)
@@ -139,7 +128,7 @@ def _parse_time_mixed(s):
 
 
 def clean(df):
-    # --- วันที่ / เวลา ---
+    
     df["date"] = df["date"].astype(str).str.strip()
     df["time"] = df["time"].astype(str).str.strip()
 
@@ -149,20 +138,20 @@ def clean(df):
     df["hour"] = time_pairs.apply(lambda t: t[0])
     df["minute"] = time_pairs.apply(lambda t: t[1])
 
-    # --- ทิ้งแถวที่ไม่มีวันที่หรือเวลาที่ใช้งานได้ ---
+   
     df = df[df["date_parsed"].notna() & df["hour"].notna()].copy()
 
     df["year"] = df["date_parsed"].dt.year
     df["month"] = df["date_parsed"].dt.month
     df["day"] = df["date_parsed"].dt.day
-    df["weekday"] = df["date_parsed"].dt.weekday  # 0=จันทร์ ... 6=อาทิตย์
+    df["weekday"] = df["date_parsed"].dt.weekday 
     df["weekday_name_th"] = df["weekday"].map(
         {0: "จันทร์", 1: "อังคาร", 2: "พุธ", 3: "พฤหัสบดี", 4: "ศุกร์", 5: "เสาร์", 6: "อาทิตย์"}
     )
     df["is_weekend"] = df["weekday"].isin([5, 6]).astype(int)
     df["season"] = df["month"].apply(month_to_season)
 
-    # ช่วงเวลา (time bin) สำหรับ dashboard และโมเดล
+   
     def hour_bin(h):
         h = int(h)
         if 0 <= h < 6:
@@ -177,25 +166,25 @@ def clean(df):
 
     df["hour_bin"] = df["hour"].apply(hour_bin)
 
-    # --- พิกัด ---
+   
     df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
     df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
-    # กรอบพิกัดคร่าว ๆ ของประเทศไทย กันข้อมูลพิกัดผิดเพี้ยน
+   
     valid_coord = df["lat"].between(5, 21) & df["lon"].between(97, 106)
     df.loc[~valid_coord, ["lat", "lon"]] = np.nan
 
-    # --- ตัวเลขผู้บาดเจ็บ/เสียชีวิต ---
+    
     for c in ["deaths", "injuries_serious", "injuries_minor", "injuries_total", "vehicle_count"]:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
     df["severity_score"] = df["deaths"] * 3 + df["injuries_serious"] * 2 + df["injuries_minor"] * 1
     df["is_fatal"] = (df["deaths"] > 0).astype(int)
 
-    # --- สภาพอากาศ ---
+    
     df["weather"] = df["weather"].astype(str).str.strip()
     df["weather_en"] = df["weather"].map(WEATHER_MAP).fillna("unknown")
 
-    # --- จังหวัด / ถนน ทำความสะอาดช่องว่าง ---
+   
     df["province"] = df["province"].astype(str).str.strip()
     df["road"] = df["road"].astype(str).str.strip()
 

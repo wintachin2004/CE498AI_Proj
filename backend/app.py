@@ -18,7 +18,7 @@ app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 
 print("กำลังโหลดข้อมูลและโมเดล ...")
 df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
-predictor = RiskPredictor()
+predictor = RiskPredictor(model_name="lightgbm_model.pkl")
 print(f"โหลดข้อมูลสำเร็จ: {len(df):,} แถว")
 
 

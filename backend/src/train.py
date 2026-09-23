@@ -1,18 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-train.py
-เทรนโมเดลทำนาย "ระดับความเสี่ยง" ของการเกิดอุบัติเหตุ
-โดยพิจารณาจาก จังหวัด + ช่วงเวลา (ชั่วโมง/วันในสัปดาห์/เดือน) + สภาพอากาศ
-
-แนวคิด:
-  ข้อมูลดิบเป็น "เหตุการณ์ที่เกิดขึ้นแล้ว" (event-level) ไม่มีตัวอย่าง negative
-  จึงต้องรวมข้อมูล (aggregate) เป็นตาราง จังหวัด x ช่วงเวลา แล้วคำนวณ
-  "คะแนนความเสี่ยง" จากความถี่ + ความรุนแรงของอุบัติเหตุในอดีต จากนั้นแบ่งเป็น
-  4 ระดับ (ต่ำ/ปานกลาง/สูง/สูงมาก) ด้วย quantile แล้วเทรนโมเดล classification
-  เพื่อให้สามารถทำนายระดับความเสี่ยงของ "จังหวัด + ช่วงเวลา" ใด ๆ ได้
-  (รวมถึง combination ที่ข้อมูลในอดีตมีน้อย โดยโมเดลจะ generalize จากฟีเจอร์เวลา)
-"""
-
 import os
 
 import joblib
@@ -44,15 +29,11 @@ def build_risk_table(df):
         )
         .reset_index()
     )
-
-    # จำนวนปีของข้อมูลที่ใช้ (เพื่อ normalize เป็นค่าเฉลี่ยต่อปี ลดผลกระทบจากช่วงข้อมูลไม่ครบปี)
     n_years = df["year"].nunique()
     agg["accidents_per_year"] = agg["accident_count"] / max(n_years, 1)
 
-    # คะแนนความเสี่ยงดิบ: ความถี่ + น้ำหนักความรุนแรง
     agg["risk_score_raw"] = agg["accidents_per_year"] + 0.5 * (agg["severity_sum"] / max(n_years, 1))
 
-    # แบ่งเป็น 4 ระดับด้วย quantile (25/50/75)
     agg["risk_level"] = pd.qcut(
         agg["risk_score_raw"].rank(method="first"),
         q=4,
@@ -63,10 +44,8 @@ def build_risk_table(df):
 
 
 def build_features(agg):
-    """แปลงตารางความเสี่ยงเป็นฟีเจอร์เชิงตัวเลข/หมวดหมู่สำหรับโมเดล"""
     feats = agg.copy()
 
-    # เข้ารหัสหมวดหมู่
     encoders = {}
     for col in ["province", "hour_bin", "weekday_name_th", "season"]:
         le = LabelEncoder()
@@ -99,7 +78,6 @@ def main():
 
     os.makedirs(MODELS_DIR, exist_ok=True)
 
-    # --- Random Forest ---
     rf = RandomForestClassifier(
         n_estimators=300, max_depth=12, min_samples_leaf=3, random_state=42, n_jobs=-1
     )
@@ -122,6 +100,26 @@ def main():
     print("F1 (macro):", f1_score(y_test, gb_pred, average="macro"))
     print(classification_report(y_test, gb_pred))
     joblib.dump(gb, os.path.join(MODELS_DIR, "gradient_boosting_model.pkl"))
+
+    #LightGBM
+    try:
+        from lightgbm import LGBMClassifier
+ 
+        lgbm = LGBMClassifier(
+            n_estimators=300, max_depth=6, learning_rate=0.05,
+            random_state=42, verbose=-1
+        )
+        lgbm.fit(X_train, y_train)
+        lgbm_pred = lgbm.predict(X_test)
+        print("\n=== LightGBM ===")
+        print("Accuracy:", accuracy_score(y_test, lgbm_pred))
+        print("F1 (macro):", f1_score(y_test, lgbm_pred, average="macro"))
+        print(classification_report(y_test, lgbm_pred))
+        joblib.dump(lgbm, os.path.join(MODELS_DIR, "lightgbm_model.pkl"))
+        print("บันทึกโมเดล LightGBM แล้ว -> models/lightgbm_model.pkl")
+    except ImportError:
+        print("\n(ข้าม LightGBM: ยังไม่ได้ติดตั้งไลบรารี lightgbm ในเครื่องนี้ "
+              "ถ้าต้องการใช้ ให้ pip install lightgbm แล้วรัน train.py ใหม่)")
 
     # ลองเทรนด้วย CatBoost ถ้ามีติดตั้งในเครื่อง (ไม่บังคับ)
     try:

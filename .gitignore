@@ -1,0 +1,28 @@
+# Frontend / Node
+node_modules/
+.env
+.env.local
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Model files
+*.pkl
+*.cbm
+
+# Training outputs / logs
+catboost_info/
+*.tfevents
+*.tsv
+
+# Generated data
+backend/data/processed/*.csv
