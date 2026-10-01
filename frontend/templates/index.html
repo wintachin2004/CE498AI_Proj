@@ -69,6 +69,43 @@
     </div>
   </section>
 
+  <!-- ===== AI CHATBOT ===== -->
+<section class="panel chatbot-panel" id="chatbot-panel">
+  <div class="panel-head">
+    <h2>🤖 ผู้ช่วยวิเคราะห์ความเสี่ยง</h2>
+    <p class="panel-note">
+      ถามเกี่ยวกับความเสี่ยงอุบัติเหตุ เช่น
+      "วันนี้กรุงเทพมหานครเสี่ยงไหม"
+    </p>
+  </div>
+
+  <div class="chatbot">
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-message bot">
+        <div class="chat-bubble">
+          สวัสดีครับ 👋<br>
+          ผมช่วยวิเคราะห์ระดับความเสี่ยงอุบัติเหตุจากโมเดล LightGBM ได้ครับ
+          <br><br>
+          ลองถามว่า:<br>
+          • วันนี้กรุงเทพมหานครเสี่ยงไหม<br>
+          • วันนี้กรุงเทพช่วงเย็นเสี่ยงไหม<br>
+          • วันศุกร์เชียงใหม่เสี่ยงไหม
+        </div>
+      </div>
+    </div>
+
+    <form class="chat-form" id="chat-form">
+      <input
+        type="text"
+        id="chat-input"
+        placeholder="พิมพ์คำถาม เช่น วันนี้กรุงเทพเสี่ยงไหม..."
+        autocomplete="off"
+      >
+      <button type="submit">ส่ง</button>
+    </form>
+  </div>
+</section>
+
   <!-- ===== TIME PATTERN MODULES ===== -->
   <section class="panel-grid">
     <div class="panel">

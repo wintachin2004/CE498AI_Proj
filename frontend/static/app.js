@@ -1,7 +1,3 @@
-// ============================================================
-// app.js — ตรรกะฝั่งหน้าเว็บของแดชบอร์ดความเสี่ยงอุบัติเหตุทางถนน
-// ============================================================
-
 const COLORS = {
   amber: "#FFB020",
   red: "#E5484D",
@@ -273,6 +269,87 @@ function renderResult(result) {
   `;
 }
 
+
+// ---------- AI Chatbot ----------
+function addChatMessage(message, sender = "bot") {
+  const container = document.getElementById("chat-messages");
+
+  const wrapper = document.createElement("div");
+  wrapper.className = `chat-message ${sender}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+
+  // แปลง newline เป็น <br>
+  bubble.innerHTML = message
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
+
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+
+  container.scrollTop = container.scrollHeight;
+}
+
+
+async function initChatbot() {
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-input");
+
+  if (!form || !input) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    addChatMessage(message, "user");
+
+    input.value = "";
+    input.disabled = true;
+
+    try {
+      addChatMessage("กำลังวิเคราะห์ข้อมูล...", "bot");
+
+      const result = await getJSON("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: message,
+        }),
+      });
+
+      // ลบข้อความ "กำลังวิเคราะห์ข้อมูล..."
+      const messages = document.getElementById("chat-messages");
+      const lastMessage = messages.lastElementChild;
+
+      if (
+        lastMessage &&
+        lastMessage.classList.contains("bot") &&
+        lastMessage.textContent.includes("กำลังวิเคราะห์ข้อมูล")
+      ) {
+        lastMessage.remove();
+      }
+
+      addChatMessage(result.reply || "ไม่สามารถวิเคราะห์คำถามได้", "bot");
+
+    } catch (err) {
+      console.error(err);
+      addChatMessage(
+        "ขออภัยครับ ระบบไม่สามารถเชื่อมต่อกับโมเดลได้ในขณะนี้",
+        "bot"
+      );
+    } finally {
+      input.disabled = false;
+      input.focus();
+    }
+  });
+}
+
 // ---------- เริ่มทำงานทั้งหมด ----------
 (async function main() {
   try {
@@ -287,7 +364,9 @@ function renderResult(result) {
       loadYearChart(),
       loadHeatmap(),
       initPredictForm(),
+      initChatbot(),
     ]);
+
     await initMap();
   } catch (err) {
     console.error(err);

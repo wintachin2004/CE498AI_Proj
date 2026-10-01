@@ -4,6 +4,7 @@ import joblib
 import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, classification_report
  
@@ -56,8 +57,29 @@ def main():
     dummy_strat = DummyClassifier(strategy="stratified", random_state=42)
     dummy_strat.fit(X_train, y_train)
     evaluate("Baseline: stratified random", dummy_strat, X_test, y_test, results)
+
+
+    # ---------- 3) Logistic Regression ----------
+    lr = LogisticRegression(
+      max_iter=2000,
+      random_state=42
+    )
+    lr.fit(X_train, y_train)
+
+    joblib.dump(
+      lr,
+      os.path.join(MODELS_DIR, "logistic_regression_model.pkl")
+    )
+
+    evaluate(
+      "Logistic Regression",
+       lr,
+       X_test,
+       y_test,
+       results
+    )
  
-    # ---------- 3) Random Forest (โมเดลเดิมจาก train.py) ----------
+    # ----------4 ) Random Forest (โมเดลเดิมจาก train.py) ----------
     rf_path = os.path.join(MODELS_DIR, "random_forest.pkl")
     if os.path.exists(rf_path):
         rf = joblib.load(rf_path)

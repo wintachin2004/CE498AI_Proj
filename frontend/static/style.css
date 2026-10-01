@@ -1,8 +1,3 @@
-/* =========================================================
-   Design tokens — "เรดาร์ความเสี่ยงอุบัติเหตุทางถนน"
-   แนวคิด: ห้องควบคุมจราจร / ป้ายจราจรบนทางหลวง
-   สี: ยางมะตอยเข้ม + สีเตือนอำพัน + สัญญาณความเสี่ยง (เขียว/เหลือง/ส้ม/แดง)
-   ========================================================= */
 :root {
   --asphalt-950: #121417;
   --asphalt-900: #1B1E23;
@@ -307,4 +302,95 @@ html, body {
   .panel-grid, .panel-grid-wide { grid-template-columns: 1fr; }
   .predict-form { grid-template-columns: 1fr; }
   .heatmap .hm-row, .heatmap .hm-hourlabels { grid-template-columns: 48px repeat(24, minmax(10px,1fr)); }
+}
+
+
+/* ---------- AI Chatbot ---------- */
+
+.chatbot-panel {
+  margin-top: 24px;
+}
+
+.chatbot {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-messages {
+  min-height: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 18px;
+  background: #1B1E23;
+  border: 1px solid #2E333B;
+  border-radius: 8px;
+}
+
+.chat-message {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.chat-message.bot {
+  justify-content: flex-start;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-bubble {
+  max-width: 75%;
+  padding: 11px 15px;
+  border-radius: 10px;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.chat-message.bot .chat-bubble {
+  background: #2E333B;
+  color: #EDEAE2;
+}
+
+.chat-message.user .chat-bubble {
+  background: #FFB020;
+  color: #1B1E23;
+}
+
+.chat-form {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #2E333B;
+  border-radius: 7px;
+  background: #1B1E23;
+  color: #EDEAE2;
+  font-family: "Kanit", sans-serif;
+  font-size: 14px;
+}
+
+.chat-form input:focus {
+  outline: none;
+  border-color: #FFB020;
+}
+
+.chat-form button {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 7px;
+  background: #FFB020;
+  color: #1B1E23;
+  font-family: "Kanit", sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-form button:hover {
+  opacity: 0.9;
 }
