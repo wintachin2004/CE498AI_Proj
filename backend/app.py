@@ -137,15 +137,31 @@ def stats_heatmap():
     )
 
 
+
 @app.route("/api/map_points")
 def map_points():
     province = request.args.get("province")
-    sub = df[df["lat"].notna() & df["lon"].notna()]
+
+    sub = df[df["lat"].notna() & df["lon"].notna()].copy()
+
     if province:
         sub = sub[sub["province"] == province]
-    sub = sub.sample(n=min(2000, len(sub)), random_state=1) if len(sub) > 2000 else sub
-    points = sub[["lat", "lon", "province", "severity_score"]].to_dict(orient="records")
-    return jsonify(points)
+
+    if len(sub) > 2000:
+        sub = sub.sample(n=2000, random_state=1)
+
+    points = sub[
+        ["lat", "lon", "province", "severity_score"]
+    ].copy()
+
+    # แปลง NaN และค่าที่ขาดหายให้เป็น JSON null
+    points = points.astype(object).where(pd.notna(points), None)
+
+    # แปลงข้อมูลเป็นชนิด Python ปกติก่อนส่งออก
+    records = points.to_dict(orient="records")
+
+    return jsonify(records)
+
 
 #Chat Bot
 
@@ -226,7 +242,7 @@ def find_hour_bin(text):
                 if start <= hour <= end:
                     return hour_bin
 
-    # ถ้าระบุเวลา เช่น 16:00 หรือ 16 นาฬิกา
+    #ระบุเวลา เช่น 16:00 หรือ 16 นาฬิกา
     time_match = re.search(r"(\d{1,2})(?::\d{2})?\s*(?:นาฬิกา|โมง|โมงเย็น|โมงเช้า)?", text)
 
     if time_match:
@@ -390,4 +406,8 @@ def api_chat():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(
+        debug=True,
+        host="0.0.0.0",
+        port=5000
+    )
