@@ -73,6 +73,12 @@ python src/train.py
 
 # 4. รันเว็บแอป
 python app.py
+
+
+cd backend
+pip install -r requirements.txt
+python setup_data.py
+python app.py
 ```
 
 จากนั้นเปิดเบราว์เซอร์ไปที่ **http://localhost:5000**

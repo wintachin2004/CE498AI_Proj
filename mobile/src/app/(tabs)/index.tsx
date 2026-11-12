@@ -36,13 +36,27 @@ type AccidentPoint = {
   severity_score?: number | string | null;
 };
 
+type ReportedAccidentPoint = {
+  id: number;
+  latitude: number;
+  longitude: number;
+  category?: string;
+  severity?: string;
+  description?: string;
+  occurred_at?: string;
+  image_url?: string;
+};
+
 const BANGKOK: GPSPosition = {
   latitude: 13.7563,
   longitude: 100.5018,
 };
 
-// สำหรับ Android Emulator ที่เรียก Backend บนคอมพิวเตอร์
-const ACCIDENT_API_URL = "http://172.20.10.3:5000/api/map_points";
+// URL ของ Backend
+const API_BASE_URL = "http://172.20.10.3:5000";
+const ACCIDENT_API_URL = `${API_BASE_URL}/api/map_points`;
+const REPORTED_ACCIDENT_API_URL =
+  `${API_BASE_URL}/api/accidents/reports`;
 
 const MAP_HTML = `
 <!DOCTYPE html>
@@ -87,8 +101,11 @@ const MAP_HTML = `
     let destinationMarker = null;
     let routeLayer = null;
 
-    // แยกชั้นหมุดอุบัติเหตุออกจาก GPS และเส้นทาง
+    // แยกชั้นหมุดข้อมูลอุบัติเหตุย้อนหลัง
     const accidentLayer = L.layerGroup().addTo(map);
+
+    // แยกชั้นหมุดรายงานอุบัติเหตุจากผู้ใช้
+    const reportedAccidentLayer = L.layerGroup().addTo(map);
 
     function escapeHTML(value) {
       return String(value ?? "").replace(/[&<>"']/g, function(char) {
@@ -102,6 +119,9 @@ const MAP_HTML = `
       });
     }
 
+    // ==========================================
+    // จุดอุบัติเหตุย้อนหลัง (สีแดง)
+    // ==========================================
     window.setAccidentPoints = function(points) {
       accidentLayer.clearLayers();
 
@@ -160,6 +180,76 @@ const MAP_HTML = `
       );
     };
 
+    // ==========================================
+    // จุดอุบัติเหตุที่ผู้ใช้แจ้ง (สีส้ม)
+    // ==========================================
+    window.setReportedAccidents = function(points) {
+      reportedAccidentLayer.clearLayers();
+
+      let count = 0;
+
+      points.forEach(function(item) {
+        const lat = Number(item.latitude);
+        const lon = Number(item.longitude);
+
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lon) ||
+          lat < -90 || lat > 90 ||
+          lon < -180 || lon > 180
+        ) {
+          return;
+        }
+
+        const category = escapeHTML(
+          item.category || "ไม่ระบุประเภท"
+        );
+
+        const severity = escapeHTML(
+          item.severity || "ไม่ระบุความรุนแรง"
+        );
+
+        const description = escapeHTML(
+          item.description || "ไม่มีรายละเอียด"
+        );
+
+        const occurredAt = escapeHTML(
+          item.occurred_at || "ไม่ระบุวันที่"
+        );
+
+        const marker = L.circleMarker([lat, lon], {
+          radius: 9,
+          color: "#C2410C",
+          weight: 2,
+          fillColor: "#F97316",
+          fillOpacity: 0.95
+        });
+
+        marker.bindPopup(
+          "<div style='min-width:180px'>" +
+          "<b style='color:#C2410C'>รายงานอุบัติเหตุจากผู้ใช้</b><br><br>" +
+          "<b>ประเภท:</b> " + category + "<br>" +
+          "<b>ความรุนแรง:</b> " + severity + "<br>" +
+          "<b>รายละเอียด:</b> " + description + "<br>" +
+          "<b>วันที่เกิดเหตุ:</b> " + occurredAt +
+          "</div>"
+        );
+
+        marker.addTo(reportedAccidentLayer);
+        count++;
+      });
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: "REPORTED_ACCIDENTS_RENDERED",
+          count: count
+        })
+      );
+    };
+
+    // ==========================================
+    // ตำแหน่ง GPS
+    // ==========================================
     window.setGPS = function(lat, lon) {
       const point = [lat, lon];
 
@@ -172,6 +262,9 @@ const MAP_HTML = `
       gpsMarker.bindPopup('ตำแหน่ง GPS ปัจจุบัน');
     };
 
+    // ==========================================
+    // เส้นทาง
+    // ==========================================
     window.drawRoute = function(latlngs, destLat, destLon) {
       if (routeLayer) {
         map.removeLayer(routeLayer);
@@ -204,6 +297,7 @@ const MAP_HTML = `
       destinationMarker = null;
     };
 
+    // แจ้ง React Native เมื่อแผนที่พร้อม
     window.ReactNativeWebView.postMessage('MAP_READY');
   </script>
 </body>
@@ -215,6 +309,8 @@ export default function HomeScreen() {
   const lastSearchAt = useRef(0);
   const searchCache = useRef<Record<string, SearchResult[]>>({});
   const pendingAccidents = useRef<AccidentPoint[]>([]);
+  const pendingReportedAccidents =
+    useRef<ReportedAccidentPoint[]>([]);
   const mapReadyRef = useRef(false);
 
   const [position, setPosition] = useState<GPSPosition | null>(null);
@@ -223,14 +319,25 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [routing, setRouting] = useState(false);
   const [loadingAccidents, setLoadingAccidents] = useState(false);
+  const [loadingReportedAccidents, setLoadingReportedAccidents] =
+    useState(false);
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState<SearchResult | null>(null);
   const [message, setMessage] = useState("");
+
   const [accidentMessage, setAccidentMessage] = useState("");
   const [accidentCount, setAccidentCount] = useState<number | null>(null);
+
+  const [reportedAccidentMessage, setReportedAccidentMessage] =
+    useState("");
+  const [reportedAccidentCount, setReportedAccidentCount] =
+    useState<number | null>(null);
+
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
+  // ส่ง JavaScript ไปยัง Leaflet ใน WebView
   const sendToMap = useCallback((script: string) => {
     webViewRef.current?.injectJavaScript(`${script}; true;`);
   }, []);
@@ -241,6 +348,7 @@ export default function HomeScreen() {
     );
   }, [sendToMap]);
 
+  // ส่งข้อมูลอุบัติเหตุย้อนหลังไปยังแผนที่
   const sendAccidentsToMap = useCallback(() => {
     if (!mapReadyRef.current) return;
 
@@ -253,36 +361,41 @@ export default function HomeScreen() {
     );
   }, [sendToMap]);
 
-  
+  // ส่งข้อมูลรายงานจากผู้ใช้ไปยังแผนที่
+  const sendReportedAccidentsToMap = useCallback(() => {
+    if (!mapReadyRef.current) return;
+
+    const json = JSON.stringify(
+      pendingReportedAccidents.current
+    );
+
+    sendToMap(
+      `if (window.setReportedAccidents) {
+        window.setReportedAccidents(${json});
+      }`
+    );
+  }, [sendToMap]);
+
+  // ==========================================
+  // โหลดข้อมูลอุบัติเหตุย้อนหลัง
+  // ==========================================
   const loadAccidents = useCallback(async () => {
     if (!mapReadyRef.current) {
       setAccidentMessage("กำลังรอแผนที่พร้อมใช้งาน");
-      console.log("[Accidents] Map is not ready yet");
       return;
     }
 
     setLoadingAccidents(true);
     setAccidentMessage("กำลังโหลดจุดอุบัติเหตุ...");
 
-    console.log("[Accidents] Request URL:", ACCIDENT_API_URL);
-    console.log("[Accidents] Starting request...");
-
     try {
       const response = await fetch(ACCIDENT_API_URL);
-
-      console.log("[Accidents] HTTP status:", response.status);
-      console.log("[Accidents] Response OK:", response.ok);
 
       if (!response.ok) {
         throw new Error(`Backend ตอบกลับ HTTP ${response.status}`);
       }
 
       const data: unknown = await response.json();
-
-      console.log(
-        "[Accidents] Received records:",
-        Array.isArray(data) ? data.length : "Response is not an array"
-      );
 
       if (!Array.isArray(data)) {
         throw new Error("รูปแบบข้อมูลจุดอุบัติเหตุไม่ถูกต้อง");
@@ -313,8 +426,6 @@ export default function HomeScreen() {
         );
       });
 
-      console.log("[Accidents] Valid points:", validPoints.length);
-
       pendingAccidents.current = validPoints;
       sendAccidentsToMap();
 
@@ -327,18 +438,94 @@ export default function HomeScreen() {
       const detail =
         error instanceof Error ? error.message : String(error);
 
-      console.error("[Accidents] Error detail:", detail);
-
-      setAccidentMessage(
-        "โหลดจุดอุบัติเหตุไม่สำเร็จ ตรวจสอบ Backend และการเชื่อมต่อ"
-      );
+      setAccidentMessage(`โหลดข้อมูลย้อนหลังไม่สำเร็จ: ${detail}`);
     } finally {
       setLoadingAccidents(false);
-      console.log("[Accidents] Request finished");
     }
   }, [sendAccidentsToMap]);
 
+  // ==========================================
+  // โหลดรายงานอุบัติเหตุจากผู้ใช้
+  // ==========================================
+  const loadReportedAccidents = useCallback(async () => {
+    if (!mapReadyRef.current) {
+      setReportedAccidentMessage("กำลังรอแผนที่พร้อมใช้งาน");
+      return;
+    }
 
+    setLoadingReportedAccidents(true);
+    setReportedAccidentMessage("กำลังโหลดรายงานจากผู้ใช้...");
+
+    try {
+      const response = await fetch(REPORTED_ACCIDENT_API_URL);
+
+      if (!response.ok) {
+        throw new Error(`Backend ตอบกลับ HTTP ${response.status}`);
+      }
+
+      const data: unknown = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("รูปแบบข้อมูลรายงานอุบัติเหตุไม่ถูกต้อง");
+      }
+
+      const validReports: ReportedAccidentPoint[] = data
+        .filter((item: any) => {
+          if (
+            item?.latitude === null ||
+            item?.latitude === undefined ||
+            item?.latitude === "" ||
+            item?.longitude === null ||
+            item?.longitude === undefined ||
+            item?.longitude === ""
+          ) {
+            return false;
+          }
+
+          const lat = Number(item.latitude);
+          const lon = Number(item.longitude);
+
+          return (
+            Number.isFinite(lat) &&
+            Number.isFinite(lon) &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180
+          );
+        })
+        .map((item: any) => ({
+          id: Number(item.id),
+          latitude: Number(item.latitude),
+          longitude: Number(item.longitude),
+          category: item.category ?? "",
+          severity: item.severity ?? "",
+          description: item.description ?? "",
+          occurred_at: item.occurred_at ?? "",
+          image_url: item.image_url ?? "",
+        }));
+
+      pendingReportedAccidents.current = validReports;
+      sendReportedAccidentsToMap();
+
+      setReportedAccidentMessage(
+        `โหลดรายงานสำเร็จ ${validReports.length.toLocaleString()} รายการ`
+      );
+    } catch (error) {
+      console.error("[Reported Accidents] Request failed:", error);
+
+      const detail =
+        error instanceof Error ? error.message : String(error);
+
+      setReportedAccidentMessage(`โหลดรายงานไม่สำเร็จ: ${detail}`);
+    } finally {
+      setLoadingReportedAccidents(false);
+    }
+  }, [sendReportedAccidentsToMap]);
+
+  // ==========================================
+  // อ่านตำแหน่ง GPS
+  // ==========================================
   async function getGPS() {
     try {
       setLoadingGPS(true);
@@ -382,24 +569,35 @@ export default function HomeScreen() {
   useEffect(() => {
     if (mapLoaded) {
       sendAccidentsToMap();
+      sendReportedAccidentsToMap();
     }
-  }, [mapLoaded, sendAccidentsToMap]);
+  }, [
+    mapLoaded,
+    sendAccidentsToMap,
+    sendReportedAccidentsToMap,
+  ]);
 
   useEffect(() => {
     getGPS();
   }, []);
 
+  // ==========================================
+  // รับข้อความจาก WebView
+  // ==========================================
   function handleWebViewMessage(event: WebViewMessageEvent) {
     const data = event.nativeEvent.data;
 
     if (data === "MAP_READY") {
       mapReadyRef.current = true;
       setMapLoaded(true);
-      sendAccidentsToMap();
 
       if (position) {
         sendGPS(position);
       }
+
+      // โหลดข้อมูลทั้งสองประเภทเมื่อแผนที่พร้อม
+      loadAccidents();
+      loadReportedAccidents();
 
       return;
     }
@@ -410,11 +608,18 @@ export default function HomeScreen() {
       if (parsed.type === "ACCIDENT_POINTS_RENDERED") {
         setAccidentCount(parsed.count);
       }
+
+      if (parsed.type === "REPORTED_ACCIDENTS_RENDERED") {
+        setReportedAccidentCount(parsed.count);
+      }
     } catch {
       // ข้ามข้อความที่ไม่ใช่ JSON
     }
   }
 
+  // ==========================================
+  // ค้นหาสถานที่
+  // ==========================================
   async function searchPlaces() {
     const text = query.trim();
 
@@ -513,6 +718,9 @@ export default function HomeScreen() {
     }
   }
 
+  // ==========================================
+  // คำนวณเส้นทาง
+  // ==========================================
   async function buildRoute(destination: SearchResult) {
     if (!position) {
       setMessage("ยังไม่มีตำแหน่งต้นทาง กรุณาอัปเดต GPS ก่อน");
@@ -571,7 +779,7 @@ export default function HomeScreen() {
 
       setMessage(
         "คำนวณเส้นทางไม่สำเร็จ: " +
-          (error instanceof Error ? error.message : String(error))
+        (error instanceof Error ? error.message : String(error))
       );
     } finally {
       setRouting(false);
@@ -728,7 +936,7 @@ export default function HomeScreen() {
           onError={(event) => {
             setMessage(
               "เปิดแผนที่ไม่สำเร็จ: " +
-                event.nativeEvent.description
+              event.nativeEvent.description
             );
           }}
         />
@@ -741,6 +949,7 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* แผงข้อมูลอุบัติเหตุย้อนหลัง */}
       <View style={styles.accidentPanel}>
         <View style={styles.accidentInfo}>
           <Text style={styles.accidentTitle}>
@@ -767,6 +976,37 @@ export default function HomeScreen() {
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.buttonText}>โหลดใหม่</Text>
+          )}
+        </Pressable>
+      </View>
+
+      {/* แผงรายงานอุบัติเหตุจากผู้ใช้ */}
+      <View style={styles.reportedPanel}>
+        <View style={styles.reportedInfo}>
+          <Text style={styles.reportedTitle}>
+            🟠 จุดอุบัติเหตุที่ผู้ใช้แจ้ง
+          </Text>
+
+          <Text style={styles.reportedStatus}>
+            {reportedAccidentMessage ||
+              (reportedAccidentCount !== null
+                ? `แสดง ${reportedAccidentCount.toLocaleString()} จุดบนแผนที่`
+                : "ยังไม่ได้โหลดรายงาน")}
+          </Text>
+        </View>
+
+        <Pressable
+          style={[
+            styles.reportedReloadButton,
+            loadingReportedAccidents && styles.disabledButton,
+          ]}
+          onPress={loadReportedAccidents}
+          disabled={!mapLoaded || loadingReportedAccidents}
+        >
+          {loadingReportedAccidents ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>โหลดรายงาน</Text>
           )}
         </Pressable>
       </View>
@@ -963,6 +1203,37 @@ const styles = StyleSheet.create({
   reloadButton: {
     backgroundColor: "#B91C1C",
     minWidth: 84,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportedPanel: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 5,
+    marginBottom: 4,
+  },
+  reportedInfo: {
+    flex: 1,
+  },
+  reportedTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#C2410C",
+  },
+  reportedStatus: {
+    fontSize: 11,
+    color: "#555",
+    marginTop: 3,
+  },
+  reportedReloadButton: {
+    backgroundColor: "#EA580C",
+    minWidth: 100,
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 8,

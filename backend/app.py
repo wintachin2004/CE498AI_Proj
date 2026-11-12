@@ -6,6 +6,14 @@ from datetime import datetime
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
+from auth import auth_bp, init_auth_db
+from accident_reports import (
+    accident_reports_bp,
+    init_accident_reports_db
+)
+
+
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from predict import RiskPredictor 
 
@@ -17,6 +25,24 @@ TEMPLATE_DIR = os.path.join(FRONTEND_DIR, "templates")
 STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
+
+
+
+# Authentication configuration
+app.config["JWT_SECRET_KEY"] = os.environ.get(
+    "JWT_SECRET_KEY",
+    "dev-only-change-this-secret-before-deployment"
+)
+
+# Register authentication routes
+app.register_blueprint(auth_bp)
+
+# Register accident reports routes
+app.register_blueprint(accident_reports_bp)
+
+# Initialize databases
+init_auth_db()
+init_accident_reports_db()
 
 print("กำลังโหลดข้อมูลและโมเดล ...")
 df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
